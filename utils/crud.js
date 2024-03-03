@@ -19,13 +19,19 @@ class Utils{
         database:"sfl_db"
     })
     currentProgress = {processname:"nill",status:"nill",data:"nill"}
-//    constructor(data,secretkey){
-//     this.encdata = data 
-//     this.privateKey = secretkey
-//    }
-   generateToken(validityOfHash){
-     return this.jwt.sign({ encdata:this.encdata }, this.privateKey, { algorithm: 'RS256' });
 
+   // constructor(data,secretkey){
+    
+   //  this.privateKey = secretkey
+   // }
+   generateToken(hash_data,secret){
+     
+     return this.jwt.sign({ encdata:hash_data }, secret);
+    
+   }
+   decryptToken(hash,secret){
+      let decoded = this.jwt.verify(hash, secret);
+      return decoded
    }
    insert(processname,tablename,fields,rules){
     return new Promise(function(res,rej){
@@ -42,13 +48,30 @@ class Utils{
     }.bind(this))
      }
    
-   select(processname,tablename,fields,rules){
+   select(processname,tablename,fields,conditions=[],condvalue=[],iscarry){
+     
+      
+     let formatQuery = `select ${fields}  from ${tablename}   `
+     
+     if(conditions.length>0){
+      let conditionKey = Object.keys(conditions);
+      let formatString = '';
+      
+      conditionKey.forEach((value, index) => {
+        if (index == 0) {
+          formatString += ` where ${conditions[value]}='${condvalue[index]}'`;
+        } else {
+          formatString += ` and ${conditions[value]}='${condvalue[index]}'`;
+        }
+      });
+      formatQuery+=formatString
+     }
     return new Promise(function(res,rej){
-    this.connection.execute(`select ${fields}  from ${tablename}`,function(err,result){
+    this.connection.execute(formatQuery,function(err,result){
        
            if(!err){
               this.currentProgress = {processname,status:2,data:result}
-              res()
+              res(iscarry?result[iscarry]:"")
            }else{
               this.currentProgress = {processname:"FAILURE",status:4,data:err}
               rej(err)
@@ -62,5 +85,32 @@ class Utils{
    console.log(array)
    return array
  }
+ SingleColumnMultiValue(processname,tablename,fields,conditions=[],condvalue=[],rules){
+   let formatQuery = `select ${fields}  from ${tablename}    `
+   let formatString = ``
+   let condvalueFormat = `${condvalue}`
+   condvalueFormat = condvalueFormat.split(",").toString()
+   
+   console.log(condvalueFormat)
+    
+   formatString += ` where ${conditions[0]} in (${condvalueFormat})`;
+   formatQuery += formatString
+   console.log(formatQuery)
+   return new Promise(function(res,rej){
+      this.connection.execute(formatQuery,function(err,result){
+         
+             if(!err){
+                this.currentProgress = {processname,status:2,data:result}
+                res()
+             }else{
+                this.currentProgress = {processname:"FAILURE",status:4,data:err}
+                rej(err)
+             }
+      }.bind(this))
+  }.bind(this))
+ }
 }
+let myutil = new Utils()
+
+
 module.exports.Utils = Utils
